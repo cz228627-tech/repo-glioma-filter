@@ -1,5 +1,7 @@
 # Cell-count filtering in paired glioma single-cell analyses
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23809029.svg)](https://doi.org/10.5281/zenodo.23809029)
+
 Code and derived tables for the manuscript *"Patient exclusion and compositional changes
 under cell-count filtering in longitudinal single-cell analyses of glioma"*.
 
