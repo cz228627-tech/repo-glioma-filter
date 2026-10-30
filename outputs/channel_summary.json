@@ -1,0 +1,22 @@
+{
+  "n_patients_paired": 18,
+  "n_complete_case": 14,
+  "dropped_state_patients": [
+    10,
+    21,
+    26,
+    41
+  ],
+  "n_genes_tested": 16044,
+  "identity_max_abs_residual": 2.3314683517128287e-15,
+  "median_within_share_genomewide": 0.9062477289031896,
+  "frac_genes_composition_channel": 0.6820618299675891,
+  "n_genes_rho_dA_ge_0.5": 2359,
+  "frac_composition_channel_among_strong": 0.49597286986011024,
+  "median_rho_within": -0.10005564057881358,
+  "median_rho_comp": 0.17362637362637365,
+  "mediate_corr": 0.12987564347460448,
+  "filter_n_dropped_pn_slots": 5,
+  "filter_n_sign_flips_dw": 3,
+  "filter_max_abs_dw_shift": 0.6322864457877222
+}

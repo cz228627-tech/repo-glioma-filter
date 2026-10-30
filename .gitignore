@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+data/*
+!data/README.md
+outputs/figures/
+outputs/gene_decomposition_GSE174554.tsv

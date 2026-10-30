@@ -1,0 +1,22 @@
+{
+  "CARE": {
+    "n_patients": 19,
+    "n_genes": 62,
+    "identity_max_abs_residual": 6.661338147750939e-16,
+    "median_within_share": 0.7840363671623711,
+    "frac_composition_channel": 0.8387096774193549,
+    "median_rho_within": 0.30877192982456136,
+    "median_rho_comp": 0.5429824561403509,
+    "patients_with_turnover": 12
+  },
+  "GSE292130": {
+    "n_patients": 8,
+    "n_genes": 62,
+    "identity_max_abs_residual": 4.440892098500626e-16,
+    "median_within_share": 0.8267538595275706,
+    "frac_composition_channel": 0.5,
+    "median_rho_within": 0.3333333333333334,
+    "median_rho_comp": 0.34523809523809534,
+    "patients_with_turnover": 6
+  }
+}
