@@ -1,63 +1,81 @@
-"""Recovery-adjusted calibration.
+"""Recovery-adjusted calibration (repo version, config paths, 52 pairs only, outputs saved).
 
-Keeps each patient's real malignant-cell totals at both endpoints and the cohort-wide
-state proportions, resamples the state counts multinomially, and applies the same
-20-cell rule. Tests how much of the observed eligibility structure follows from cell
-recovery and shared composition alone.
+Keeps each patient's real malignant-cell totals, draws state counts multinomially from the
+cohort-wide composition of the same 52 paired specimens, and applies the 20-cell rule.
 """
+import json
+import os
+import sys
+
 import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
 
-MIN = 20
-S = pd.read_csv(r"C:\work\repo_glioma_filter\data\care_wt_state_counts.csv")
-P = pd.read_csv(r"C:\work\paper_v3\audit_pairs52.csv")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import config as C
 
-wide = S.pivot_table(index="patient", columns=["tp", "State"], values="n", aggfunc="sum").fillna(0)
-states = sorted(wide.columns.get_level_values(1).unique())
+MIN = C.MIN_CELLS
+REPS = 400
 
-t1 = wide.xs("T1", axis=1, level=0)[states]
-t2 = wide.xs("T2", axis=1, level=0)[states]
-pooled1 = t1.sum() / t1.sum().sum()
-pooled2 = t2.sum() / t2.sum().sum()
 
-N1 = P.set_index("patient").tp_total.reindex(P.patient).to_numpy()
-N2 = P.set_index("patient").r1_total.reindex(P.patient).to_numpy()
-minN = np.minimum(N1, N2)
+def main():
+    counts = pd.read_csv(C.CARE_WT_COUNTS)
+    pairs = pd.read_csv(os.path.join(C.OUT, "care_wt_pairs.csv"))
+    keep = set(pairs.patient)
+    counts = counts[counts.patient.isin(keep) & counts.tp.isin(["T1", "T2"])]
 
-rng = np.random.default_rng(20261029)
-reps = 400
-null = []
-for _ in range(reps):
-    c1 = rng.multinomial(N1.astype(int), pooled1.to_numpy())
-    c2 = rng.multinomial(N2.astype(int), pooled2.to_numpy())
-    ok = (c1 >= MIN) & (c2 >= MIN)
-    n_states = ok.sum(axis=1)
-    rho = spearmanr(minN, n_states).statistic
-    js = []
-    for i in range(len(states)):
-        for j in range(i + 1, len(states)):
-            u = (ok[:, i] | ok[:, j]).sum()
-            js.append((ok[:, i] & ok[:, j]).sum() / u if u else 0.0)
-    null.append(dict(rho=rho, zero=int((n_states == 0).sum()), jaccard=np.mean(js),
-                     per_state=ok.sum(axis=0)))
+    wide = counts.pivot_table(index="patient", columns=["tp", "State"], values="n",
+                              aggfunc="sum").fillna(0)
+    states = sorted(wide.columns.get_level_values(1).unique())
+    t1 = wide.xs("T1", axis=1, level=0)[states].reindex(pairs.patient).fillna(0)
+    t2 = wide.xs("T2", axis=1, level=0)[states].reindex(pairs.patient).fillna(0)
 
-N = pd.DataFrame([{k: v for k, v in d.items() if k != "per_state"} for d in null])
-obs_zero = 6
-obs_rho = 0.900
-obs_jac = 0.431
+    p1 = t1.sum() / t1.sum().sum()
+    p2 = t2.sum() / t2.sum().sum()
+    N1 = pairs.set_index("patient").loc[t1.index, "tp_total"].to_numpy()
+    N2 = pairs.set_index("patient").loc[t1.index, "r1_total"].to_numpy()
+    minN = np.minimum(N1, N2)
 
-print(f"calibration, {reps} draws")
-print(f"  rho      observed {obs_rho:.3f}   calibration {N.rho.mean():.3f} "
-      f"[{N.rho.quantile(.025):.3f}, {N.rho.quantile(.975):.3f}]")
-print(f"  zero     observed {obs_zero}      calibration {N.zero.mean():.1f} "
-      f"[{N.zero.quantile(.025):.0f}, {N.zero.quantile(.975):.0f}]")
-print(f"  Jaccard  observed {obs_jac:.3f}   calibration {N.jaccard.mean():.3f} "
-      f"[{N.jaccard.quantile(.025):.3f}, {N.jaccard.quantile(.975):.3f}]")
+    obs_ok = (t1.to_numpy() >= MIN) & (t2.to_numpy() >= MIN)
+    obs_rho = spearmanr(minN, obs_ok.sum(axis=1)).statistic
+    js = [((obs_ok[:, i] & obs_ok[:, j]).sum() / (obs_ok[:, i] | obs_ok[:, j]).sum())
+          for i in range(len(states)) for j in range(i + 1, len(states))]
+    obs = dict(rho=float(obs_rho), zero=int((obs_ok.sum(axis=1) == 0).sum()),
+               jaccard=float(np.mean(js)), per_state=obs_ok.sum(axis=0).tolist())
 
-ps = np.array([d["per_state"] for d in null])
-print("\nper-state eligible pairs: observed vs calibration mean [95%]")
-obs = (t1.reindex(P.patient).to_numpy() >= MIN) & (t2.reindex(P.patient).to_numpy() >= MIN)
-for k, st in enumerate(states):
-    print(f"  {st:11s} {int(obs[:, k].sum()):3d}   {ps[:, k].mean():6.1f} "
-          f"[{np.percentile(ps[:, k], 2.5):.1f}, {np.percentile(ps[:, k], 97.5):.1f}]")
+    rng = np.random.default_rng(C.SEED)
+    draws = []
+    for _ in range(REPS):
+        c1 = rng.multinomial(N1.astype(int), p1.to_numpy())
+        c2 = rng.multinomial(N2.astype(int), p2.to_numpy())
+        ok = (c1 >= MIN) & (c2 >= MIN)
+        k = ok.sum(axis=1)
+        draws.append(dict(rho=float(spearmanr(minN, k).statistic),
+                          zero=int((k == 0).sum()),
+                          jaccard=float(np.mean([((ok[:, i] & ok[:, j]).sum()
+                                                  / (ok[:, i] | ok[:, j]).sum())
+                                                 for i in range(len(states))
+                                                 for j in range(i + 1, len(states))])),
+                          per_state=ok.sum(axis=0).tolist()))
+
+    def summarise(key):
+        v = np.array([d[key] for d in draws], dtype=float)
+        return dict(mean=float(v.mean()), lo=float(np.percentile(v, 2.5)),
+                    hi=float(np.percentile(v, 97.5)))
+
+    out = dict(observed=obs, reference={k: summarise(k) for k in ("rho", "zero", "jaccard")},
+               draws=draws, reps=REPS, states=states,
+               note="reference distribution, not a confidence interval for the observed effect")
+    pd.DataFrame([{k: v for k, v in d.items() if k != "per_state"} for d in draws]).to_csv(
+        os.path.join(C.OUT, "calibration_recovery_draws.csv"), index=False)
+    with open(os.path.join(C.OUT, "calibration_recovery.json"), "w") as fh:
+        json.dump(out, fh, indent=1)
+
+    print(f"observed rho {obs['rho']:.3f}  zero {obs['zero']}  jaccard {obs['jaccard']:.3f}")
+    for k in ("rho", "zero", "jaccard"):
+        s = out["reference"][k]
+        print(f"reference {k:8s} {s['mean']:.3f} [{s['lo']:.3f}, {s['hi']:.3f}]")
+
+
+if __name__ == "__main__":
+    main()
