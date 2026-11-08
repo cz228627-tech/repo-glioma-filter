@@ -1,0 +1,30 @@
+{
+ "all": {
+  "n": 52,
+  "median": 0.0052725873820442005,
+  "ci_low": -0.017030603650231152,
+  "ci_high": 0.03017251503824395,
+  "min_cells_median": 691.0
+ },
+ "eligible": {
+  "n": 27,
+  "median": 0.020014115825027302,
+  "ci_low": -0.032040686181975794,
+  "ci_high": 0.033667025827828004,
+  "min_cells_median": 2118.0
+ },
+ "excluded": {
+  "n": 25,
+  "median": 0.0,
+  "ci_low": -0.0806238435104414,
+  "ci_high": 0.0418168595459432,
+  "min_cells_median": 110.0
+ },
+ "difference_eligible_minus_all": {
+  "point": 0.014741528442983102,
+  "ci_low": -0.035112990607859405,
+  "ci_high": 0.025864662706107096,
+  "method": "nested bootstrap: resample 52 patients, re-apply the 20-cell rule each draw",
+  "draws": 20000
+ }
+}
