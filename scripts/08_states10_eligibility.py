@@ -20,6 +20,7 @@ import sys
 
 import numpy as np
 import pandas as pd
+from scipy.stats import spearmanr
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config as C
@@ -92,6 +93,37 @@ def main():
           f"observed {int((n_states == 0).sum())}")
     print(f"lowest observed overlap: "
           f"{J.nsmallest(1, 'observed_jaccard')[['state_a', 'state_b', 'observed_jaccard']].to_dict('records')}")
+
+    # Jaccard expected under independent allocation with the observed margins:
+    # simulate, because E[|A n B| / |A u B|] is not |E A n B| / |E A u B|.
+    rng = np.random.default_rng(C.SEED)
+    kk = k.to_numpy()
+    sims = []
+    for _ in range(2000):
+        cols = [rng.random(len(M)) < (ki / len(M)) for ki in kk]
+        vals = []
+        for i in range(len(kk)):
+            for j in range(i + 1, len(kk)):
+                inter = np.sum(cols[i] & cols[j])
+                union = np.sum(cols[i] | cols[j])
+                vals.append(inter / union)
+        sims.append(np.mean(vals))
+    lo, hi = np.percentile(sims, [2.5, 97.5])
+    print(f"simulated mean Jaccard under independence {np.mean(sims):.3f} "
+          f"[{lo:.3f}, {hi:.3f}]  observed {J.observed_jaccard.mean():.3f}")
+
+    # patient-level association between cell recovery and the number of eligible states
+    cells = pairs.set_index("patient").loc[M.index, ["tp_total", "r1_total"]].min(axis=1)
+    rho, pval = spearmanr(cells.to_numpy(), n_states.to_numpy())
+    q = pd.qcut(cells, 4, labels=["Q1", "Q2", "Q3", "Q4"])
+    tab = (pd.DataFrame({"cells": cells.to_numpy(), "states": n_states.to_numpy(), "q": q})
+           .groupby("q", observed=True)
+           .agg(median_cells=("cells", "median"), median_states=("states", "median"),
+                zero_state_patients=("states", lambda x: int((x == 0).sum())),
+                n=("states", "size")))
+    tab.to_csv(os.path.join(C.OUT, "states10_recovery_strata.csv"))
+    print(f"\neligible states vs minimum malignant cells: rho={rho:.3f} P={pval:.2e}")
+    print(tab.to_string())
 
 
 if __name__ == "__main__":
