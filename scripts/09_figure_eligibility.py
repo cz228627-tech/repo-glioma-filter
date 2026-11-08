@@ -31,9 +31,9 @@ ax[0].set_ylabel("Patients (sorted by malignant cells recovered)", fontsize=8)
 ax[0].set_title("a  Eligibility by state (20 cells at both endpoints)", fontsize=8, loc="left")
 
 zero = int((n == 0).sum())
-ax[0].text(9.6, 1.1, f"{zero} patients eligible\nfor no state (top rows)", fontsize=6.5,
-           color="tab:red", ha="right", va="top")
-ax[0].text(9.6, len(Mo) - 2, "black = eligible", fontsize=6.5, ha="right", va="bottom")
+fig.text(0.012, 0.015, f"black = eligible; the {zero} patients above the broken line are "
+         f"eligible for no state", fontsize=6.5, color="0.25")
+ax[0].axhline(zero - 0.5, color="tab:red", lw=0.7, ls="--")
 
 ax[1].scatter(cells, n, s=14, color="k", alpha=0.55, linewidth=0)
 ax[1].set_xscale("log")
