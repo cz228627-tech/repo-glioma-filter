@@ -42,10 +42,10 @@ ax[0].set_ylabel("Strictly paired patients", fontsize=7)
 ax[0].set_title("a  MES-eligible by MGMT status", fontsize=8, loc="left")
 ax[0].set_ylim(0, max(nv) * 1.2)
 
-# b: theta across rules
-rules = ["all", "10", "20", "50"]
-vals = [(-0.051, -0.197, 0.008), (-0.088, -0.251, 0.017),
-        (-0.099, -0.195, 0.015), (-0.084, -0.242, 0.049)]
+# b: theta across rules, read from the frozen table
+R = pd.read_csv(os.path.join(C.OUT, "mgmt_theta_by_rule.csv")).sort_values("rule")
+rules = ["all" if r == 0 else str(r) for r in R.rule]
+vals = [(r.theta, r.lo, r.hi) for _, r in R.iterrows()]
 y = np.arange(len(rules))
 for i, (v, lo, hi) in enumerate(vals):
     ax[1].plot([lo, hi], [i, i], color="0.3", lw=1.2)
